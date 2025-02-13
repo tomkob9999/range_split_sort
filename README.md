@@ -71,7 +71,7 @@ Note: in Big O notation convention, both $O(\log_2 N)$ and $O(\log_{64} N)$ are 
 
 #### **3.3 Space Complexity**
 
-- Similar to other hierarchical structures, **$O(N \log_2 N)$** space is required to cover the whole tree. To reach 10 layer, two or more items need to share the significant digits of 60 digits.  So, it is very unlikely to go further unless the dataset is pathologically structured. 
+- Similar to other hierarchical structures, **$O(N \log_2 N)$** space is required to cover the whole tree. To reach 10 layers, two or more items need to share the significant digits of 60 digits.  So, it is very unlikely to go further unless the dataset is pathologically structured. 
 - Unlike **LayeredBitmap**, which explicitly stores every data point as a bitmap, RangeSplitSort **only tracks ranges**, leading to significant memory savings.
 - **Floating-point numbers are fully supported**, unlike certain bitmap-based approaches requiring conversion.
 
