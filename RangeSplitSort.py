@@ -1,3 +1,33 @@
+# """
+# 🔹 **Implementation Notes & Future Optimizations** 🔹
+
+# This is a **proof of concept** implementation of the **RangeSplitSort** algorithm, 
+# focusing on clarity and correctness rather than low-level optimizations. 
+# While Python is not ideal for frequent object creation, the algorithm structure 
+# remains valid for high-performance implementations in C/C++/Rust.
+
+# ⚡ **Potential Optimizations for Low-Level Implementations** ⚡
+# 1️⃣ **Pre-allocating Child Arrays for Memory Locality**  
+#    - Improves cache efficiency and reduces memory fragmentation.  
+#    - Avoids dynamic allocation overhead at runtime.  
+#    - Trade-off: Reduces flexibility & increases initial memory use.  
+
+# 2️⃣ **Using a Hybrid Data Structure (Array + Sparse Map)**  
+#    - Instead of a full array, use a dictionary for sparse regions.  
+#    - Trade-off: Hashing overhead may negate lookup benefits.  
+
+# 3️⃣ **Parallelizing Traversals for Faster Sorting/Search**  
+#    - Divide traversal work across CPU cores or SIMD operations.  
+#    - Trade-off: Requires explicit concurrency handling.  
+
+# 4️⃣ **Optimizing Bitmask Operations for Faster Lookups**  
+#    - Bitwise techniques can be further tuned for lower-level efficiency.  
+#    - Example: Using CPU intrinsics for fast bit manipulations.  
+
+# 📌 **Decision: These optimizations are left to future implementers, 
+# ensuring the current model remains readable and adaptable.**
+# """
+
 import math
 
 
