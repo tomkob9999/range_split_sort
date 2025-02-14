@@ -37,7 +37,7 @@ class RangeSplitSort:
 
 
     def __init__(self, values=None, num_segments=64, parent=None, layer=0, use_bitwise=False):
-        if use_bitwise and num_segments not in [32, 64]:
+        if use_bitwise and num_segments not in [16, 32, 64, 128, 256]:
             raise ValueError("Bitwise mode only supports num_segments = 32 or 64")
         
         self.values = values  # List of values in this node
@@ -50,19 +50,11 @@ class RangeSplitSort:
         self.use_bitwise = use_bitwise
         self.bitmask = 0  # Bitmask for tracking child nodes
 
-        if not parent:
-            self.max_layer = 0
-        # For testing
-        p = self
-        # while True:
-        for i in range(100):
-            if not p.parent:
-                if layer > p.max_layer:
-                    p.max_layer = layer
-                break
-            p = p.parent
-
+        children = []
         if parent is None:
+            self.max_layer = 0
+            self.base = self
+            
             self.org_values = None
             max_value = max(values)
             self.divider = num_segments ** int(math.log(max_value, num_segments) + 1)
@@ -72,24 +64,35 @@ class RangeSplitSort:
                 
                 if self.child[index] is None:
                     self.child[index] = RangeSplitSort([], self.num_segments, self, self.layer + 1, use_bitwise=self.use_bitwise)
+                    # children.append(self.child[index])
+                    children.append(index)
                     self.bitmask |= (1 << index)  # Set bit in bitmask
                     # print(f"Created child node at index {index} for value {value}")
 
                 self.child[index].values.append(value - int(value / self.divider) * self.divider)
                 self.child[index].org_values.append(value)
                 self.child[index].parent_index = index
-                
-            for c in self.child:
-                if c:
-                    c.populate()
+
+            # for c in children:
+            #     c.populate()
+            for i in children:
+                self.child[i].populate()
             del self.values
             self.values = None
         else:
+            self.base=self.parent.base
+            if self.layer > self.base.max_layer:
+                self.base.max_layer = self.layer
             self.divider = parent.divider / num_segments
             # print(f"Child node created with divider: {self.divider} and Layer: {self.layer}")
     
-    def distribute_values(self):
+    def populate(self):
+        if len(set(self.values)) <= 1:
+            # print(f"Stopping recursion at node with values: {self.values}")
+            return
+            
         # print(f"Distributing values in node with divider {self.divider}: {self.values}")
+        children = []
         for value in self.values:
             index = int(value / self.divider)
             
@@ -97,28 +100,22 @@ class RangeSplitSort:
                 self.child[index] = RangeSplitSort([], self.num_segments, self, self.layer + 1, use_bitwise=self.use_bitwise)
                 self.bitmask |= (1 << index)  # Set bit in bitmask
                 # print(f"Created child node at index {index} for value {value}")
+                children.append(index)
                 
             self.child[index].values.append(value - int(value / self.divider) * self.divider)
             self.child[index].org_values.append(value)
             self.child[index].parent_index = index
             # print(f"Added value {value} to child at index {index}")
-    
-    def populate(self):
-        if len(set(self.values)) <= 1:
-            # print(f"Stopping recursion at node with values: {self.values}")
-            return
         
-        self.distribute_values()
-        
-        for i, child in enumerate(self.child):
-            if child is not None:
-                # print(f"Populating child at index {i}")
-                child.populate()
+        # for i, child in enumerate(self.child):
+        for i in children:
+            child = self.child[i]
+            child.populate()
             # del self.org_values
             self.org_values = None
             # del self.values
             self.values = None
-
+            
     def search(self, value):
         target = self
         
@@ -364,7 +361,6 @@ class RangeSplitSort:
                 negative_list = neg_sort.traverse_backward(neg_max)
                 negative_list = [-num for num in negative_list if num < 0]
             return negative_list + positive_list
-
 # Test script
 def print_tree(node, level=0, index=1):
     print("  " * level + f"Node (Layer: {node.layer}, index: {index}, parent_index: {node.parent_index}, Values: {node.values}, Org Values: {node.org_values}, Bitmask: {bin(node.bitmask)})")
