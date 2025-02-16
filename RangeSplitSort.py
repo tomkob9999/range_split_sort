@@ -493,21 +493,20 @@ print(res[:20], res[-20:])
 
 
 
-
 import time
 import pandas as pd
 import random
 
 # Example usage and testing
-def run_test(size, num_segments=64, use_integer=True, use_bitwise=True):
+def run_test(size, num_segments=64, range_scale=1, use_integer=True, use_bitwise=True):
 
-    print("run_test", "size", size, "num_segments", num_segments, "use_integer", use_integer, "use_bitwise", use_bitwise)
-
+    print("run_test", "size", size, "num_segments", num_segments, "range_scale", range_scale, "use_integer", use_integer, "use_bitwise", use_bitwise)
+    print("range", size*range_scale)
     # Insert test
     if use_integer:
-        vals = [random.randint(0, size) for _ in range(size)]
+        vals = [random.randint(0, size*range_scale) for _ in range(size)]
     else:
-        vals = [random.uniform(0, size) for _ in range(size)]
+        vals = [random.uniform(0, size*range_scale) for _ in range(size)]
 
     start_time = time.time()
     test_bitmap = RangeSplitSort(vals, num_segments, use_bitwise=use_bitwise)
@@ -563,16 +562,18 @@ def run_test(size, num_segments=64, use_integer=True, use_bitwise=True):
 
 
 # Test configurations
-sizes = [100, 10000, 1_000_000]  # Corrected sizes to satisfy multi-layer design requirements
-# sizes = [100, 10000, 100_000]  # Corrected sizes to satisfy multi-layer design requirements
+# sizes = [100, 10000, 1_000_000]  # Corrected sizes to satisfy multi-layer design requirements
+sizes = [100, 10000, 100_000]  # Corrected sizes to satisfy multi-layer design requirements
 num_segments = 64
 
-for p in [(64, True, True), (64, False, True)]:
+# num_segments, range_scale, use_integer, use_bitwise
+# for p in [(64, 1, True, True), (64, 100, True, True), (64, 1, False, True), (64, 100, False, True)]:
+for p in [(64, 100, True, False), (64, 100, True, True)]:
     # Run and collect results
     # use_integer = False
     print("        ----------------")
     print("use_integer", p[0], "num_segments", p[1])
-    results = [run_test(size, num_segments=p[0], use_integer=p[1], use_bitwise=p[2]) for size in sizes]
+    results = [run_test(size, num_segments=p[0], range_scale=p[1], use_integer=p[2], use_bitwise=p[3]) for size in sizes]
     
     # Create DataFrame and reorganize metrics as rows and sizes as columns
     df = pd.DataFrame(results).T
