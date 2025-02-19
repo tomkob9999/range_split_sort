@@ -1,9 +1,4 @@
-# Extended version for experiments
-        # use_bitwise - use the use of bitmap or array, but it is usually faster when False
-        # use_dictionary - use dictionary or array but it is usually faster when False
-        # use_child_generator - created to test bulk creation but it is faster when False
-        
-
+# Refactored Version
 
 import math
 
@@ -53,6 +48,7 @@ class RangeSplitSort:
         self.layer = layer
         self.org_values = []
         self.bitmask = 0  # Bitmask for tracking child nodes
+        self.child = None
 
         children = []
         if is_base:
@@ -110,9 +106,9 @@ class RangeSplitSort:
     
     def populate(self, parent):
 
+            
         self.parent = parent
         self.base=self.parent.base
-        self.child = {} if self.base.use_dictionary else [None] * num_segments  # Array of child nodes
         if self.layer > self.base.max_layer:
             self.base.max_layer = self.layer
         self.divider = parent.divider / self.base.num_segments
@@ -120,6 +116,8 @@ class RangeSplitSort:
         if len(set(self.values)) <= 1:
             # print(f"Stopping recursion at node with values: {self.values}")
             return
+            
+        self.child = {} if self.base.use_dictionary else [None] * num_segments  # Array of child nodes
             
         # print(f"Distributing values in node with divider {self.divider}: {self.values}")
         children = []
@@ -215,6 +213,9 @@ class RangeSplitSort:
             target = target.child[index]
             
         # target.child[index] = RangeSplitSort([], layer=target.layer + 1, is_base=False)
+
+        if not target.child:
+            target.child = {} if self.base.use_dictionary else [None] * num_segments  # Array of child nodes
         target.child[index] = self.get_child(layer=self.layer + 1)
         
         target.bitmask |= (1 << index)  # Set bit in bitmask
@@ -430,6 +431,185 @@ class RangeSplitSort:
 # Test script
 def print_tree(node, level=0, index=1):
     print("  " * level + f"Node (Layer: {node.layer}, index: {index}, parent_index: {node.parent_index}, Values: {node.values}, Org Values: {node.org_values}, Bitmask: {bin(node.bitmask)})")
-    for i, child in enumerate(node.child):
-        if child is not None:
-            print_tree(child, level + 1, i)
+    if node.child:
+        for i, child in enumerate(node.child):
+            if child is not None:
+                print_tree(child, level + 1, i)
+
+import random
+import time
+
+# test_values = [0.05, 0.2, 0.6, 1.5, 10, 50, 100, 500, 1000, 4999, 9998]
+random.seed(42)
+# siz = 1000
+# siz = 1_000_000
+siz = 100_000
+# siz = 100
+test_values = [random.uniform(0, siz*100) for _ in range(siz)]
+# print("test_values", test_values[:20], test_values[-20:])
+
+# num_segments = 100
+# num_segments = 10
+num_segments = 64
+use_bitwise = True
+use_dictionary = False
+
+
+start_time = time.time()
+root = RangeSplitSort(test_values, num_segments, use_bitwise=use_bitwise, use_dictionary=use_dictionary)
+insertion_time = time.time() - start_time
+print("insertion_time", insertion_time)
+
+# print("\nTree Structure:")
+# print_tree(root)
+
+# # Test search
+# print("\nTesting search...")
+# new_values = [5000, 10, 2003]
+# for val in new_values:
+#     res = root.search(val)
+#     print("search", val, res)
+    
+# Test insertion
+print("\nTesting insertion...")
+new_values = [2003, 0.23, 71]
+for val in new_values:
+    print("inserting", val)
+    root.insert(val)
+
+# print("\nTree Structure:")
+# print_tree(root) 
+
+# # Test find_next
+# print("\nTesting find_next...")
+# # test_values2 = [0.01, 3, 10, 50, 72, 100, 500, 1000]
+# for val in test_values2:
+#     # next_val, next_node = root.find_next(val)
+#     # print(f"Next value after {val}: {next_val}")
+#     # status, next_val, next_node = root.find_next_side(val)
+#     print("START find_next", val)
+#     status, next_val, next_node, index = root.find_next(val)
+#     print(f"Next value after  {status}: {val}: {next_val}: {index}")
+#     # print("START find_prev", val)
+#     # status, next_val, next_node, index = root.find_prev(val)
+#     # print(f"Previous value before  {status}: {val}: {next_val}: {index}")
+
+
+
+
+print("EXECUTE root.traverse_forward()")
+res = root.traverse_forward()
+# print("res", res)
+print(res[:20], res[-20:])
+# print("EXECUTE root.traverse_forward(72)")
+# res = root.traverse_forward(72)
+# print(res[:20], res[-20:])
+
+print("EXECUTE root.traverse_backward()")
+res = root.traverse_backward()
+print(res[:20], res[-20:])
+
+
+# test_values = [v - siz/2 for v in test_values]
+# print("EXECUTE RangeSplitSort.sort()")
+# res = RangeSplitSort.sort(test_values)
+# print(res[:20], res[-20:])
+
+
+import time
+import pandas as pd
+import random
+
+# Example usage and testing
+def run_test(size, num_segments=64, range_scale=1, use_integer=True, use_bitwise=True):
+
+    print("run_test", "size", size, "num_segments", num_segments, "range_scale", range_scale, "use_integer", use_integer, "use_bitwise", use_bitwise)
+    print("range", size*range_scale)
+    # Insert test
+    if use_integer:
+        vals = [random.randint(0, size*range_scale) for _ in range(size)]
+    else:
+        vals = [random.uniform(0, size*range_scale) for _ in range(size)]
+
+    start_time = time.time()
+    test_bitmap = RangeSplitSort(vals, num_segments, use_bitwise=use_bitwise, use_dictionary=True)
+    insertion_time = time.time() - start_time
+
+    # Contains test (middle element)
+    # contains_value = (size // 2) - ((size // 2) % element_step)  # Closest inserted value to the middle
+    contains_value = size*range_scale // 2  # Closest inserted value to the middle
+    start_time = time.time()
+    contains_result = test_bitmap.search(contains_value)
+    contains_time = time.time() - start_time
+
+    # Set test (middle element)
+    start_time = time.time()
+    contains_result = test_bitmap.insert(contains_value)
+    set_time = time.time() - start_time
+    
+    # Find next test
+    start_time = time.time()
+    next_result = test_bitmap.find_next(contains_value)
+    next_time = time.time() - start_time
+
+    # Find previous test
+    start_time = time.time()
+    next_result = test_bitmap.find_prev(contains_value)
+    previous_time = time.time() - start_time
+
+    # Traverse sorted test
+    start_time = time.time()
+    sorted_traversal = test_bitmap.traverse_forward()
+    traversal_time = time.time() - start_time
+    
+    vals = [v - int(size/2) for v in vals]
+    
+    # sort
+    start_time = time.time()
+    sorted_data = RangeSplitSort.sort(vals)
+    sort_time = time.time() - start_time
+    
+    num_layers = test_bitmap.max_layer+1
+    
+    # Return the results for this test
+    return {
+        "Test Data Size": int(len(vals)),
+        "Insertion Time (s)": round(set_time, 6),
+        "Contains Time": round(contains_time, 6),
+        "Bulk Insert Time (sorting)": round(insertion_time, 6),
+        "Next Time (s)": round(next_time, 6),
+        "Previous Time (s)": round(previous_time, 6),
+        "Traversal Time": round(traversal_time, 6),
+        "Sort Time": round(sort_time, 6),
+        "Number of Layers": round(num_layers, 6)
+    }
+
+
+# Test configurations
+sizes = [100, 10000, 1_000_000]  # Corrected sizes to satisfy multi-layer design requirements
+# sizes = [100, 10000, 100_000]  # Corrected sizes to satisfy multi-layer design requirements
+num_segments = 64
+
+# num_segments, range_scale, use_integer, use_bitwise
+# for p in [(64, 1, True, True), (64, 100, True, True), (64, 1, False, True), (64, 100, False, True)]:
+for p in [(64, 100, True, False), (64, 100, True, True)]:
+    # Run and collect results
+    # use_integer = False
+    print("        ----------------")
+    print("use_integer", p[0], "num_segments", p[1])
+    results = [run_test(size, num_segments=p[0], range_scale=p[1], use_integer=p[2], use_bitwise=p[3]) for size in sizes]
+    
+    # Create DataFrame and reorganize metrics as rows and sizes as columns
+    df = pd.DataFrame(results).T
+    df.columns = [f"Size {sizes[i]}" for i in range(len(results))]
+    
+    # Calculate change rates manually
+    if len(df.columns) > 1:
+        change_rate_1_2 = ((df.iloc[:, 1] - df.iloc[:, 0]) / df.iloc[:, 0]).replace([float('inf'), -float('inf')], 0).fillna(0)
+        df["Change Rate 1-2"] = change_rate_1_2.values
+    
+    if len(df.columns) > 2:
+        change_rate_2_3 = ((df.iloc[:, 2] - df.iloc[:, 1]) / df.iloc[:, 1]).replace([float('inf'), -float('inf')], 0).fillna(0)
+        df["Change Rate 2-3"] = change_rate_2_3.values
+    
+    print(df)

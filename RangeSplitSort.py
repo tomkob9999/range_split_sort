@@ -30,8 +30,6 @@
 
 
 
-
-
 import math
 
 
@@ -76,7 +74,8 @@ class RangeSplitSort:
             raise ValueError("Bitwise mode only supports num_segments = 32 or 64")
         
         self.values = values  # List of values in this node
-        self.child = [None] * num_segments  # Array of child nodes
+        # self.child = [None] * num_segments  # Array of child nodes
+        self.child = None  # Array of child nodes
         self.parent = parent  # Pointer to the parent node
         self.num_segments = num_segments  # Number of segments
         self.parent_index = 0
@@ -87,8 +86,10 @@ class RangeSplitSort:
 
         children = []
         if parent is None:
+            
             self.max_layer = 0
             self.base = self
+            self.child = [None] * num_segments  # Array of child nodes
             
             self.org_values = None
             max_value = max(values)
@@ -126,6 +127,7 @@ class RangeSplitSort:
             
         # print(f"Distributing values in node with divider {self.divider}: {self.values}")
         children = []
+        self.child = [None] * num_segments  # Array of child nodes
         # for value in self.values:
         for i, value in enumerate(self.values):
             index = int(value / self.divider)
@@ -214,7 +216,9 @@ class RangeSplitSort:
             vv = vv - int(vv / target.divider) * target.divider
 
             target = target.child[index]
-            
+
+        if not target.child:
+            target.child = [None] * num_segments  # Array of child nodes
         target.child[index] = RangeSplitSort([], target.num_segments, target, target.layer + 1, use_bitwise=self.use_bitwise)
         target.bitmask |= (1 << index)  # Set bit in bitmask
         target.child[index].values.append(value - int(value / target.divider) * target.divider)
@@ -418,16 +422,17 @@ class RangeSplitSort:
 # Test script
 def print_tree(node, level=0, index=1):
     print("  " * level + f"Node (Layer: {node.layer}, index: {index}, parent_index: {node.parent_index}, Values: {node.values}, Org Values: {node.org_values}, Bitmask: {bin(node.bitmask)})")
-    for i, child in enumerate(node.child):
-        if child is not None:
-            print_tree(child, level + 1, i)
+    if node.child:
+        for i, child in enumerate(node.child):
+            if child is not None:
+                print_tree(child, level + 1, i)
 
 import random
 
 # test_values = [0.05, 0.2, 0.6, 1.5, 10, 50, 100, 500, 1000, 4999, 9998]
 random.seed(42)
-siz = 1000
-# siz = 100
+# siz = 1000
+siz = 100
 test_values = [random.uniform(0, siz) for _ in range(siz)]
 # print("test_values", test_values[:20], test_values[-20:])
 
@@ -448,14 +453,14 @@ root = RangeSplitSort(test_values, num_segments, use_bitwise=use_bitwise)
 #     res = root.search(val)
 #     print("search", val, res)
     
-# # Test insertion
-# print("\nTesting insertion...")
-# new_values = [2003, 0.23, 71]
-# for val in new_values:
-#     root.insert(val)
+# Test insertion
+print("\nTesting insertion...")
+new_values = [2003, 0.23, 71]
+for val in new_values:
+    root.insert(val)
 
-# print("\nTree Structure:")
-# print_tree(root) 
+print("\nTree Structure:")
+print_tree(root) 
 
 # # Test find_next
 # print("\nTesting find_next...")
@@ -490,8 +495,6 @@ test_values = [v - siz/2 for v in test_values]
 print("EXECUTE RangeSplitSort.sort()")
 res = RangeSplitSort.sort(test_values)
 print(res[:20], res[-20:])
-
-
 
 
 import time
