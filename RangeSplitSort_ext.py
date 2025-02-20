@@ -52,7 +52,7 @@ class RangeSplitSort:
 
         children = []
         if is_base:
-            if use_bitwise and num_segments not in [32, 64]:
+            if use_bitwise and num_segments not in [32, 64, 128]:
                 raise ValueError("Bitwise mode only supports num_segments = 32 or 64")
             self.use_bitwise = use_bitwise
             self.use_dictionary = use_dictionary
@@ -61,13 +61,15 @@ class RangeSplitSort:
             self.num_segments = num_segments  # Number of segments
             self.max_layer = 0
             self.base = self
+            self.num_nodes = 1
             
             self.org_values = None
             max_value = max(values)
             self.divider = num_segments ** int(math.log(max_value, num_segments) + 1)
 
             if use_child_generator:
-                self.child_repository = [RangeSplitSort([], is_base=False) for _ in range(len(values)*5)]
+                # self.child_repository = [RangeSplitSort([], is_base=False) for _ in range(len(values)*5)]
+                self.child_repository = [RangeSplitSort([], is_base=False) for _ in range(int(len(values)*1.5))]
             else:
                 self.child_repository = []
             self.child_rep_inc = 0
@@ -93,7 +95,6 @@ class RangeSplitSort:
                 self.child[i].populate(self)
             del self.values
             self.values = None
-
     
     def get_child(self, layer):
         if self.base.child_rep_inc < len(self.base.child_repository):
@@ -102,13 +103,15 @@ class RangeSplitSort:
             self.base.child_rep_inc += 1
             return ret
         else:
-            return RangeSplitSort([], layer=self.layer, is_base=False)
+            return RangeSplitSort([], layer=layer, is_base=False)
     
     def populate(self, parent):
 
             
         self.parent = parent
         self.base=self.parent.base
+        self.base.num_nodes += 1
+        
         if self.layer > self.base.max_layer:
             self.base.max_layer = self.layer
         self.divider = parent.divider / self.base.num_segments
@@ -117,7 +120,7 @@ class RangeSplitSort:
             # print(f"Stopping recursion at node with values: {self.values}")
             return
             
-        self.child = {} if self.base.use_dictionary else [None] * num_segments  # Array of child nodes
+        self.child = {} if self.base.use_dictionary else [None] * self.base.num_segments  # Array of child nodes
             
         # print(f"Distributing values in node with divider {self.divider}: {self.values}")
         children = []
@@ -215,7 +218,7 @@ class RangeSplitSort:
         # target.child[index] = RangeSplitSort([], layer=target.layer + 1, is_base=False)
 
         if not target.child:
-            target.child = {} if self.base.use_dictionary else [None] * num_segments  # Array of child nodes
+            target.child = {} if self.base.use_dictionary else [None] * self.base.num_segments  # Array of child nodes
         target.child[index] = self.get_child(layer=self.layer + 1)
         
         target.bitmask |= (1 << index)  # Set bit in bitmask
@@ -245,6 +248,10 @@ class RangeSplitSort:
         lsb = masked_b & -masked_b
         
         # Step 5: Convert the LSB to the correct bit position (1-based indexing)
+        # if lsb < 3:         # log2 implementation but slower than bit_length, which uses native bitwise operation in O(1)
+        #     return int(math.log2(lsb))+1
+        # else:
+        #     return int(math.log2(lsb & ~(1 << int(math.log2(lsb))-1)))+1
         return lsb.bit_length()
     
     def _find_previous_bm(b, pos):
@@ -258,6 +265,10 @@ class RangeSplitSort:
             return -1
         
         # Step 3: Isolate the most significant set bit using bitwise operations
+        # if x1 < 3:    # log2 implementation but slower than bit_length, which uses native bitwise operation in O(1)
+        #     return int(math.log2(x1))+1
+        # else:
+        #     return int(math.log2(x1 & ~(1 << int(math.log2(x1))-1)))+1
         return x1.bit_length()
 
         
@@ -442,8 +453,8 @@ import time
 # test_values = [0.05, 0.2, 0.6, 1.5, 10, 50, 100, 500, 1000, 4999, 9998]
 random.seed(42)
 # siz = 1000
-# siz = 1_000_000
-siz = 100_000
+siz = 1_000_000
+# siz = 100_000
 # siz = 100
 test_values = [random.uniform(0, siz*100) for _ in range(siz)]
 # print("test_values", test_values[:20], test_values[-20:])
@@ -452,7 +463,7 @@ test_values = [random.uniform(0, siz*100) for _ in range(siz)]
 # num_segments = 10
 num_segments = 64
 use_bitwise = True
-use_dictionary = False
+use_dictionary = True
 
 
 start_time = time.time()
@@ -516,14 +527,16 @@ print(res[:20], res[-20:])
 # print(res[:20], res[-20:])
 
 
+
 import time
 import pandas as pd
 import random
 
 # Example usage and testing
-def run_test(size, num_segments=64, range_scale=1, use_integer=True, use_bitwise=True):
+def run_test(size, num_segments=64, range_scale=1, use_integer=True, use_bitwise=True, use_dictionary=True, use_child_generator=True):
 
-    print("run_test", "size", size, "num_segments", num_segments, "range_scale", range_scale, "use_integer", use_integer, "use_bitwise", use_bitwise)
+    print("run_test", "size", size, "num_segments", num_segments, "range_scale", range_scale, "use_integer", use_integer, \
+          "use_bitwise", use_bitwise, "use_dictionary", use_dictionary, "use_child_generator", use_child_generator)
     print("range", size*range_scale)
     # Insert test
     if use_integer:
@@ -532,7 +545,7 @@ def run_test(size, num_segments=64, range_scale=1, use_integer=True, use_bitwise
         vals = [random.uniform(0, size*range_scale) for _ in range(size)]
 
     start_time = time.time()
-    test_bitmap = RangeSplitSort(vals, num_segments, use_bitwise=use_bitwise, use_dictionary=True)
+    test_bitmap = RangeSplitSort(vals, num_segments, use_bitwise=use_bitwise, use_dictionary=True, use_child_generator=True)
     insertion_time = time.time() - start_time
 
     # Contains test (middle element)
@@ -586,18 +599,20 @@ def run_test(size, num_segments=64, range_scale=1, use_integer=True, use_bitwise
 
 
 # Test configurations
-sizes = [100, 10000, 1_000_000]  # Corrected sizes to satisfy multi-layer design requirements
-# sizes = [100, 10000, 100_000]  # Corrected sizes to satisfy multi-layer design requirements
+# sizes = [100, 10000, 1_000_000]  # Corrected sizes to satisfy multi-layer design requirements
+sizes = [100, 10000, 100_000]  # Corrected sizes to satisfy multi-layer design requirements
 num_segments = 64
+# num_segments = 32
+# num_segments = 128
 
-# num_segments, range_scale, use_integer, use_bitwise
+# num_segments, range_scale, use_integer, use_bitwise=True, use_dictionary=True, use_child_generator=False
 # for p in [(64, 1, True, True), (64, 100, True, True), (64, 1, False, True), (64, 100, False, True)]:
-for p in [(64, 100, True, False), (64, 100, True, True)]:
+for p in [(num_segments, 1000, False, True, True, False), (num_segments, 1000, False, True, True, True)]:
     # Run and collect results
     # use_integer = False
     print("        ----------------")
     print("use_integer", p[0], "num_segments", p[1])
-    results = [run_test(size, num_segments=p[0], range_scale=p[1], use_integer=p[2], use_bitwise=p[3]) for size in sizes]
+    results = [run_test(size, num_segments=p[0], range_scale=p[1], use_integer=p[2], use_bitwise=p[3], use_dictionary=p[4],  use_child_generator=p[5]) for size in sizes]
     
     # Create DataFrame and reorganize metrics as rows and sizes as columns
     df = pd.DataFrame(results).T
